@@ -192,8 +192,8 @@ impl LynxCore {
     }
 
     fn blit_screen(&mut self, callbacks: &mut impl Callbacks) {
-        let screen = self.lynx.screen_rgb();
-        for (src, dst) in screen.chunks_exact(3).zip(self.frame_buffer.iter_mut()) {
+        let screen = self.lynx.screen_rgba();
+        for (src, dst) in screen.chunks_exact(4).zip(self.frame_buffer.iter_mut()) {
             *dst = XRGB8888::DEFAULT.with_r(src[0]).with_g(src[1]).with_b(src[2]);
         }
         callbacks.upload_video_frame(&self.rendering_mode, &self.pixel_format, &self.frame_buffer);

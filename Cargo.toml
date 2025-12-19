@@ -1,12 +1,12 @@
 [package]
 name = "holani-retro"
-version = "0.9.6-1"
+version = "0.9.8"
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.84"
 
 [dependencies]
-holani = { git = "https://github.com/LLeny/holani.git", tag = "0.9.6-1" }
-log = { version = "0.4", features = [
+holani = { git = "https://github.com/LLeny/holani.git", tag = "0.9.8" }
+log = { version = "0.4.29", features = [
   "max_level_trace",
   "release_max_level_warn",
 ] }
