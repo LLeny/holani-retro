@@ -12,7 +12,7 @@ systemid = "atari_lynx"
 database = "Atari - Lynx"
 license = "GPLv3"
 permissions = ""
-display_version = "0.9.6"
+display_version = "0.9.8"
 
 # Libretro Features
 supports_no_game = "false"
