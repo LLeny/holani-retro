@@ -1,6 +1,6 @@
 [package]
 name = "holani-retro"
-version = "0.9.8"
+version = "0.9.9"
 edition = "2021"
 rust-version = "1.84"
 
@@ -10,7 +10,8 @@ log = { version = "0.4.29", features = [
   "max_level_trace",
   "release_max_level_warn",
 ] }
-libretro-rs = { git = "https://github.com/libretro-rs/libretro-rs.git", rev = "c7f414d19d837921b8762656e53e7f1b8f892179" }
+#libretro-rs = { git = "https://github.com/libretro-rs/libretro-rs.git", rev = "c7f414d19d837921b8762656e53e7f1b8f892179" }
+libretro-rs = { path = "../libretro-rs/libretro-rs" }
 lazy_static = "1.5.0"
 
 [lib]

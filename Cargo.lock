@@ -300,7 +300,7 @@ dependencies = [
 
 [[package]]
 name = "holani-retro"
-version = "0.9.8"
+version = "0.9.9"
 dependencies = [
  "holani",
  "lazy_static",
@@ -378,7 +378,6 @@ dependencies = [
 [[package]]
 name = "libretro-rs"
 version = "0.2.0-SNAPSHOT"
-source = "git+https://github.com/libretro-rs/libretro-rs.git?rev=c7f414d19d837921b8762656e53e7f1b8f892179#c7f414d19d837921b8762656e53e7f1b8f892179"
 dependencies = [
  "arbitrary-int",
  "bitbybit",
@@ -390,7 +389,6 @@ dependencies = [
 [[package]]
 name = "libretro-rs-ffi"
 version = "0.1.0"
-source = "git+https://github.com/libretro-rs/libretro-rs.git?rev=c7f414d19d837921b8762656e53e7f1b8f892179#c7f414d19d837921b8762656e53e7f1b8f892179"
 dependencies = [
  "bindgen",
  "sptr",
