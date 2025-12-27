@@ -7,14 +7,15 @@ use ::log::warn;
 const CRYSTAL_FREQUENCY: u32 = 16_000_000;
 const SAMPLE_RATE: f64 = 22_050.;
 const DEFAULT_FPS: f64 = 75.;
-const TICKS_PER_AUDIO_SAMPLE: u64 = CRYSTAL_FREQUENCY as u64 / SAMPLE_RATE as u64;
+const TICKS_PER_AUDIO_SAMPLE: usize = CRYSTAL_FREQUENCY as usize / SAMPLE_RATE as usize;
 const FRAME_BUFFER_LENGTH: usize = (LYNX_SCREEN_HEIGHT * LYNX_SCREEN_WIDTH) as usize;
 const BUFFER_WIDTH: u16 = LYNX_SCREEN_WIDTH as u16;
+const INPUT_POLLING_TICKS: usize = 1024;
 
 struct LynxCore {
     lynx: Lynx,
     last_refresh_rate: f64,
-    audio_ticks: u64,
+    audio_ticks: usize,
     rendering_mode: SoftwareRenderEnabled,
     pixel_format: ActiveFormat<XRGB8888>,
     frame_buffer: ArrayFrameBuffer<XRGB8888, FRAME_BUFFER_LENGTH, BUFFER_WIDTH>,    
@@ -40,15 +41,23 @@ impl<'a> retro::Core<'a> for LynxCore {
     }
 
     fn run(&mut self, env: &mut impl env::Run, callbacks: &mut impl Callbacks) -> InputsPolled {
-        let poll_inputs = self.buttons(callbacks); 
+        let mut input_polling: usize = 0;
+        let inputs_polled = callbacks.poll_inputs();
         
         while !self.lynx.redraw_requested() {
             self.lynx.tick();
+            
             self.audio_ticks += 1;
             if self.audio_ticks == TICKS_PER_AUDIO_SAMPLE {
                 let sample = self.lynx.audio_sample();
                 callbacks.upload_audio_sample(sample.0, sample.1);
                 self.audio_ticks = 0;                
+            }
+
+            input_polling += 1;
+            if input_polling == INPUT_POLLING_TICKS {
+                self.buttons(callbacks); 
+                input_polling = 0;
             }
         }      
 
@@ -63,7 +72,7 @@ impl<'a> retro::Core<'a> for LynxCore {
             }            
         }
 
-        poll_inputs
+        inputs_polled
     }
     
     fn reset(&mut self, _env: &mut impl env::Reset) {
@@ -164,8 +173,8 @@ impl<'a> retro::GetMemoryRegionCore<'a> for LynxCore {
 }
 
 impl LynxCore {
-    fn buttons(&mut self, callbacks: &mut impl Callbacks) -> InputsPolled {
-        let inputs_polled = callbacks.poll_inputs();
+    fn buttons(&mut self, callbacks: &mut impl Callbacks) {
+        let _ = callbacks.poll_inputs();
 
         let mut j = self.lynx.joystick();
         let mut s = self.lynx.switches();
@@ -187,8 +196,6 @@ impl LynxCore {
         if s != so {
             self.lynx.set_switches_u8(s.bits());
         }
-
-        inputs_polled
     }
 
     fn blit_screen(&mut self, callbacks: &mut impl Callbacks) {
