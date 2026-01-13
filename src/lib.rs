@@ -7,7 +7,10 @@ use holani::{
 };
 use lazy_static::lazy_static;
 use libretro_rs::{
-    ffi::{RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO},
+    ffi::{
+        RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO,
+        RETRO_NETPACKET_BROADCAST, RETRO_NETPACKET_FLUSH_HINT, RETRO_NETPACKET_UNRELIABLE,
+    },
     prelude::*,
     retro::netpacket::{NetpacketPollReceive, NetpacketSender},
 };
@@ -19,6 +22,7 @@ const DEFAULT_FPS: f64 = 75.;
 const TICKS_PER_AUDIO_SAMPLE: u64 = CRYSTAL_FREQUENCY as u64 / SAMPLE_RATE as u64;
 const FRAME_BUFFER_LENGTH: usize = (LYNX_SCREEN_HEIGHT * LYNX_SCREEN_WIDTH) as usize;
 const BUFFER_WIDTH: u16 = LYNX_SCREEN_WIDTH as u16;
+const NP_PERIOD_TICKS: usize = 128;
 
 struct LynxCore {
     lynx: Lynx,
@@ -27,6 +31,10 @@ struct LynxCore {
     rendering_mode: SoftwareRenderEnabled,
     pixel_format: ActiveFormat<XRGB8888>,
     frame_buffer: ArrayFrameBuffer<XRGB8888, FRAME_BUFFER_LENGTH, BUFFER_WIDTH>,
+    np_send_fn: Option<NetpacketSender>,
+    np_poll_receive_fn: Option<NetpacketPollReceive>,
+    np_started: bool,
+    np_period_ticks: usize,
 }
 
 impl<'a> retro::Core<'a> for LynxCore {
@@ -56,11 +64,31 @@ impl<'a> retro::Core<'a> for LynxCore {
 
         while !self.lynx.redraw_requested() {
             self.lynx.tick();
+
             self.audio_ticks += 1;
             if self.audio_ticks == TICKS_PER_AUDIO_SAMPLE {
                 let sample = self.lynx.audio_sample();
                 callbacks.upload_audio_sample(sample.0, sample.1);
                 self.audio_ticks = 0;
+            }
+
+            if self.np_started {
+                self.np_period_ticks += 1;
+                if self.np_period_ticks >= NP_PERIOD_TICKS {
+                    if let Some(tx) = self.lynx.comlynx_ext_tx() {
+                        self.np_send_fn.map(|np_sender| unsafe {
+                            let _ = np_sender.send(
+                                (RETRO_NETPACKET_UNRELIABLE | RETRO_NETPACKET_FLUSH_HINT) as u16,
+                                RETRO_NETPACKET_BROADCAST as u16,
+                                &[tx],
+                            );
+                        });
+                    }
+                    self.np_poll_receive_fn.map(|poll_fn| unsafe {
+                        let _ = poll_fn.poll_receive();
+                    });
+                    self.np_period_ticks = 0;
+                }
             }
         }
 
@@ -135,6 +163,10 @@ impl<'a> retro::Core<'a> for LynxCore {
             frame_buffer: ArrayFrameBuffer::new(
                 [XRGB8888::new_with_raw_value(0); FRAME_BUFFER_LENGTH],
             ),
+            np_send_fn: None,
+            np_poll_receive_fn: None,
+            np_started: false,
+            np_period_ticks: 0,
         })
     }
 }
@@ -196,40 +228,38 @@ impl<'a> retro::GetMemoryRegionCore<'a> for LynxCore {
 impl<'a> retro::NetpacketCore<'a> for LynxCore {
     fn netpacket_start(
         &mut self,
-        env: &mut impl env::Environment,
-        client_id: u16,
-        send_fn: crate::retro::netpacket::NetpacketSender,
-        poll_receive_fn: Option<crate::retro::netpacket::NetpacketPollReceive>,
+        _env: &mut impl env::Environment,
+        _client_id: u16,
+        send_fn: NetpacketSender,
+        poll_receive_fn: Option<NetpacketPollReceive>,
     ) {
-        todo!("Netpacket start called for client ID {}", client_id);
+        self.np_send_fn = Some(send_fn);
+        self.np_poll_receive_fn = poll_receive_fn;
+        self.np_started = true;
+        self.lynx.set_comlynx_cable_present(true);
     }
 
-    fn netpacket_receive(&mut self, env: &mut impl env::Environment, buf: &[u8], client_id: u16) {
-        todo!(
-            "Netpacket receive called for client ID {} with {} bytes",
-            client_id,
-            buf.len()
-        )
+    fn netpacket_receive(&mut self, _env: &mut impl env::Environment, buf: &[u8], _client_id: u16) {
+        for data in buf.iter() {
+            self.lynx.comlynx_ext_rx(*data);
+        }
     }
 
     fn netpacket_stop(&mut self, _env: &mut impl env::Environment) {
-        todo!("Netpacket stop called")
+        self.np_started = false;
+        self.lynx.set_comlynx_cable_present(false);
     }
 
-    fn netpacket_poll(&mut self, _env: &mut impl env::Environment) {
-        todo!("Netpacket poll called")
-    }
+    fn netpacket_poll(&mut self, _env: &mut impl env::Environment) {}
 
     fn netpacket_connected(&mut self, _env: &mut impl env::Environment, _client_id: u16) -> bool {
-        todo!("Netpacket connected called")
+        true
     }
 
-    fn netpacket_disconnected(&mut self, _env: &mut impl env::Environment, _client_id: u16) {
-        todo!("Netpacket disconnected called")
-    }
+    fn netpacket_disconnected(&mut self, _env: &mut impl env::Environment, _client_id: u16) {}
 
     fn netpacket_protocol_version() -> Option<&'static libretro_rs::c_utf8::CUtf8> {
-        todo!("Netpacket protocol version called")
+       None 
     }
 }
 
@@ -268,12 +298,9 @@ impl LynxCore {
     }
 
     fn blit_screen(&mut self, callbacks: &mut impl Callbacks) {
-        let screen = self.lynx.screen_rgba();
-        for (src, dst) in screen.chunks_exact(4).zip(self.frame_buffer.iter_mut()) {
-            *dst = XRGB8888::DEFAULT
-                .with_r(src[0])
-                .with_g(src[1])
-                .with_b(src[2]);
+        let screen = self.lynx.screen_argb();
+        for (src, dst) in screen.iter().zip(self.frame_buffer.iter_mut()) {
+            *dst = XRGB8888::new_with_raw_value(*src);
         }
         callbacks.upload_video_frame(&self.rendering_mode, &self.pixel_format, &self.frame_buffer);
     }

@@ -131,6 +131,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "branches"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f11502672c5570f77f6bdf573332483f8475bab6a7fda00f1fae8ddb5a6245c0"
+dependencies = [
+ "rustc_version",
+]
+
+[[package]]
 name = "byteorder"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -144,6 +153,12 @@ checksum = "f747ed2575d426b7cbf0fcba5872db319a600d597391c339779a3d9835d1ea4d"
 dependencies = [
  "version_check",
 ]
+
+[[package]]
+name = "cacheguard"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2dbbe48daefc2575b7dfdc8227f4724582080ae48b0482191f6eb91e4cd2f405"
 
 [[package]]
 name = "cexpr"
@@ -243,6 +258,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
+name = "futures-core"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
+
+[[package]]
 name = "glob"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -285,11 +306,11 @@ dependencies = [
 [[package]]
 name = "holani"
 version = "0.9.8"
-source = "git+https://github.com/LLeny/holani.git?tag=0.9.8#c2e18c9f4455314402fab64d1d1fb139566dd2cf"
 dependencies = [
  "bitflags 2.10.0",
  "env_logger",
  "hashbrown",
+ "kanal",
  "lazy_static",
  "log",
  "md5",
@@ -348,6 +369,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "kanal"
+version = "0.2.0-beta1"
+source = "git+https://github.com/fereidani/kanal.git?rev=9a4b98d570258410fa07c5329e3c4499533b1e92#9a4b98d570258410fa07c5329e3c4499533b1e92"
+dependencies = [
+ "branches",
+ "cacheguard",
+ "futures-core",
+ "lock_api",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -378,6 +410,7 @@ dependencies = [
 [[package]]
 name = "libretro-rs"
 version = "0.2.0-SNAPSHOT"
+source = "git+https://github.com/LLeny/libretro-rs.git?branch=netpacket#6a5a0b02d9b6448ed74b866968550de5bf90cb46"
 dependencies = [
  "arbitrary-int",
  "bitbybit",
@@ -389,6 +422,7 @@ dependencies = [
 [[package]]
 name = "libretro-rs-ffi"
 version = "0.1.0"
+source = "git+https://github.com/LLeny/libretro-rs.git?branch=netpacket#6a5a0b02d9b6448ed74b866968550de5bf90cb46"
 dependencies = [
  "bindgen",
  "sptr",
