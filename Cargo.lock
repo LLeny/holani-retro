@@ -284,8 +284,8 @@ dependencies = [
 
 [[package]]
 name = "holani"
-version = "0.9.8"
-source = "git+https://github.com/LLeny/holani.git?tag=0.9.8#c2e18c9f4455314402fab64d1d1fb139566dd2cf"
+version = "0.9.9"
+source = "git+https://github.com/LLeny/holani.git?tag=0.9.9#4fa0ee920c63a9cf8d07b974ae77fb15161ff967"
 dependencies = [
  "bitflags 2.10.0",
  "env_logger",
