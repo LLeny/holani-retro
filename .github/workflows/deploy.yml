@@ -107,7 +107,9 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
       - name: Install gcc-multilib
-        run: sudo apt install -y gcc-multilib
+        run: |
+          sudo apt update
+          sudo apt install -y gcc-multilib
       - name: Build Base 
         run: cargo ndk -o ./jniLibs build --release
       - name: Transform filenames
