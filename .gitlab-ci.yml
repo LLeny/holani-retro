@@ -8,9 +8,21 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/rust-windows-x64.yml'
     
+  # Windows 32-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/rust-windows-i686.yml'
+
   # Linux 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/rust-linux-x64.yml'
+
+  # Linux 32-bit
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/rust-linux-i686.yml'
+
+  # Linux aarch64
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/rust-linux-aarch64.yml'
 
   # macOS/iOS/tvOS
   - project: 'libretro-infrastructure/ci-templates'
@@ -42,68 +54,41 @@ libretro-build-linux-x64:
     - .core-defs
 
 # Linux aarch64
-# Cross-compiled from the same image as the x64 job, the way the image already
-# cross-compiles the Apple and Android arm64 targets. There is no
-# rust-linux-aarch64.yml template yet (libretro/libretro-super#2030) and the
-# rust image is amd64-only, so the target and its linker are added here.
 libretro-build-linux-aarch64:
   extends:
-    - .libretro-rust-linux-x64
+    - .libretro-rust-linux-aarch64-default
     - .core-defs
-  variables:
-    TARGET_ARCH: aarch64-unknown-linux-gnu
-    STRIP: aarch64-linux-gnu-strip
-    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-  before_script:
-    - apt-get update -qy && apt-get install -yq gcc-aarch64-linux-gnu
-    - rustup target add aarch64-unknown-linux-gnu
 
 # Linux 32-bit
-# Same story as the aarch64 job above: no rust-linux-i686.yml template, and the
-# rust image is amd64, so the target and the 32-bit runtime go in here.
 libretro-build-linux-i686:
   extends:
-    - .libretro-rust-linux-x64
+    - .libretro-rust-linux-i686-default
     - .core-defs
-  variables:
-    TARGET_ARCH: i686-unknown-linux-gnu
-  before_script:
-    - apt-get update -qy && apt-get install -yq gcc-multilib
-    - rustup target add i686-unknown-linux-gnu
 
 # Windows 32-bit
-# Not gcc: the image's i686 mingw is the SJLJ flavour, and rust's
-# i686-pc-windows-gnu std unwinds with DWARF, so libgcc has no _Unwind_Resume
-# for it and the link ends there. llvm-mingw carries a libunwind that does -
-# stood in as libgcc_eh - plus an empty libgcc for the -lgcc the same link
-# line asks for. dlltool still has to be the GNU one; rustc calls it itself
-# for raw-dylib and llvm-dlltool does not stand in.
 libretro-build-windows-i686:
   extends:
-    - .libretro-rust-windows-x64
+    - .libretro-rust-windows-i686-default
     - .core-defs
-  variables:
-    TARGET_ARCH: i686-pc-windows-gnu
-    LLVM_MINGW: llvm-mingw-20230320-msvcrt-ubuntu-18.04-x86_64
-    STRIP: /opt/llvm-mingw-20230320-msvcrt-ubuntu-18.04-x86_64/bin/llvm-strip
-    CARGO_TARGET_I686_PC_WINDOWS_GNU_LINKER: /opt/llvm-mingw-20230320-msvcrt-ubuntu-18.04-x86_64/bin/i686-w64-mingw32-clang
-    CARGO_TARGET_I686_PC_WINDOWS_GNU_RUSTFLAGS: -L /opt/gcc-stub
-  before_script:
-    - apt-get update -qy && apt-get install -yq binutils-mingw-w64-i686
-    - curl -sSL -o /tmp/llvm-mingw.tar.xz "https://github.com/mstorsjo/llvm-mingw/releases/download/20230320/$LLVM_MINGW.tar.xz"
-    - tar xJf /tmp/llvm-mingw.tar.xz -C /opt
-    - mkdir -p /opt/gcc-stub
-    - /opt/$LLVM_MINGW/bin/llvm-ar crs /opt/gcc-stub/libgcc.a
-    - cp /opt/$LLVM_MINGW/i686-w64-mingw32/lib/libunwind.a /opt/gcc-stub/libgcc_eh.a
-    - rustup target add i686-pc-windows-gnu
 
 # MacOS 64-bit
+# SDKROOT is exported here because the template's does not run: ci-templates'
+# .libretro-rust-apple-osx-base exports it in a before_script, and the two
+# -default templates below it define before_scripts of their own, which
+# replace it. Without the SDK, bindgen parses libretro.h against the Linux
+# host's headers - which happened to be enough until the rust image was
+# rebuilt on 2026-09-21 (gcc-multilib went then), and since that both jobs
+# fail on 'bits/libc-header-start.h' file not found. iOS and tvOS export theirs in
+# their own templates, which is why they still build.
 libretro-build-osx-x64:
   extends:
     - .libretro-rust-osx-x86_64-default
     - .core-defs
   variables:
     CARGO_TARGET_X86_64_APPLE_DARWIN_RUSTFLAGS: -Clink-arg=-undefined -Clink-arg=dynamic_lookup
+  before_script:
+    - !reference [.libretro-rust-osx-x86_64-default, before_script]
+    - export SDKROOT=$OSX_SDKROOT
 # MacOS ARM 64-bit
 libretro-build-osx-arm64:
   extends:
@@ -111,6 +96,9 @@ libretro-build-osx-arm64:
     - .core-defs
   variables:
     CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS: -Clink-arg=-undefined -Clink-arg=dynamic_lookup
+  before_script:
+    - !reference [.libretro-rust-osx-arm64-default, before_script]
+    - export SDKROOT=$OSX_SDKROOT
 
 # Android ARMv7a
 android-armeabi-v7a:
